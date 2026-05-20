@@ -1,7 +1,21 @@
 {
+  "name": "api-to-sdk",
+  "version": "1.0.0",
+  "description": "Generate TypeScript, Python, and Dart SDKs from OpenAPI specs",
+  "main": "dist/cli.js",
+  "bin": {
+    "api-to-sdk": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node cli.ts"
+  },
+  "keywords": ["openapi", "sdk", "generator", "typescript", "python", "dart"],
+  "author": "Ihsan Elashhab",
+  "license": "MIT",
   "devDependencies": {
-    "@types/node": "^25.9.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3"
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
   }
 }

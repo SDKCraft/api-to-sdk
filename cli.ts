@@ -1,9 +1,9 @@
+#!/usr/bin/env node
 import { parseOpenApi } from "./parsers/openapi-parser";
 import { generateTypeScriptSDK } from "./generators/typescript-generator";
 import { generatePythonSDK } from "./generators/python-generator";
 import { generateDartSDK } from "./generators/dart-generator";
 
-// قراءة arguments من command line
 const args = process.argv.slice(2);
 
 function getArg(flag: string): string | undefined {
@@ -15,38 +15,19 @@ const input  = getArg("--input");
 const lang   = getArg("--lang");
 const output = getArg("--output");
 
-// التحقق من الـ arguments
 if (!input || !lang || !output) {
-  console.log(`
-Usage: api-to-sdk --input <file> --lang <language> --output <dir>
-
-Options:
-  --input   Path to OpenAPI JSON file
-  --lang    Language: typescript | python | dart | all
-  --output  Output directory
-
-Examples:
-  api-to-sdk --input ./api.json --lang typescript --output ./sdk
-  api-to-sdk --input ./api.json --lang all --output ./sdk
-  `);
+  console.log("Usage: api-to-sdk --input <file> --lang <language> --output <dir>");
+  console.log("Languages: typescript | python | dart | all");
   process.exit(1);
 }
 
-// تشغيل الـ parser
-console.log(`\n📂 Reading: ${input}`);
+console.log("Reading: " + input);
 const spec = parseOpenApi(input);
-console.log(`📋 API: ${spec.title} v${spec.version}`);
-console.log(`🔗 Endpoints: ${spec.endpoints.length}\n`);
+console.log("API: " + spec.title + " v" + spec.version);
+console.log("Endpoints: " + spec.endpoints.length);
 
-// توليد الـ SDK حسب اللغة
-if (lang === "typescript" || lang === "all") {
-  generateTypeScriptSDK(spec, `${output}/typescript`);
-}
-if (lang === "python" || lang === "all") {
-  generatePythonSDK(spec, `${output}/python`);
-}
-if (lang === "dart" || lang === "all") {
-  generateDartSDK(spec, `${output}/dart`);
-}
+if (lang === "typescript" || lang === "all") generateTypeScriptSDK(spec, output + "/typescript");
+if (lang === "python"     || lang === "all") generatePythonSDK(spec, output + "/python");
+if (lang === "dart"       || lang === "all") generateDartSDK(spec, output + "/dart");
 
-console.log(`\n🎉 Done!`);
+console.log("Done!");

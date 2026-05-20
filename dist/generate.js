@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const openapi_parser_1 = require("./parsers/openapi-parser");
+const typescript_generator_1 = require("./generators/typescript-generator");
+const python_generator_1 = require("./generators/python-generator");
+const dart_generator_1 = require("./generators/dart-generator");
+const spec = (0, openapi_parser_1.parseOpenApi)("./examples/openapi.json");
+(0, typescript_generator_1.generateTypeScriptSDK)(spec, "./output/typescript");
+(0, python_generator_1.generatePythonSDK)(spec, "./output/python");
+(0, dart_generator_1.generateDartSDK)(spec, "./output/dart");
