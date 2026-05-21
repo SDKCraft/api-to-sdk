@@ -81,6 +81,10 @@ api-to-sdk/
 ├── output/           # Generated SDKs
 └── cli.ts            # CLI interface
 ```
+└── cli.ts            # CLI interface
+```
+
+---
 ## 🗺️ Roadmap
 
 - [x] TypeScript SDK
