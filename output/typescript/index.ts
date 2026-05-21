@@ -32,6 +32,19 @@ async function request(method: string, path: string, body?: any, params?: Record
   return res.json();
 }
 
+/** Fetch all pages automatically */
+export async function paginate(fn: (page: number) => Promise<any>, maxPages = 10): Promise<any[]> {
+  const results: any[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const data = await fn(page);
+    if (!data || (Array.isArray(data) && data.length === 0)) break;
+    if (Array.isArray(data)) results.push(...data);
+    else if (data.data) results.push(...data.data);
+    else { results.push(data); break; }
+  }
+  return results;
+}
+
 /** Get all users */
 export async function getUsers(params?: Record<string, any>): Promise<any> {
   return request("GET", `/users`, undefined, params);

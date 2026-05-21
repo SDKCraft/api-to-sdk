@@ -38,7 +38,18 @@ lines.push(`  });`);
 lines.push(`  if (!res.ok) throw new Error("API Error: " + res.status + " " + res.statusText);`);
 lines.push(`  return res.json();`);
 lines.push(`}\n`);
-
+lines.push(`/** Fetch all pages automatically */`);
+lines.push(`export async function paginate(fn: (page: number) => Promise<any>, maxPages = 10): Promise<any[]> {`);
+lines.push(`  const results: any[] = [];`);
+lines.push(`  for (let page = 1; page <= maxPages; page++) {`);
+lines.push(`    const data = await fn(page);`);
+lines.push(`    if (!data || (Array.isArray(data) && data.length === 0)) break;`);
+lines.push(`    if (Array.isArray(data)) results.push(...data);`);
+lines.push(`    else if (data.data) results.push(...data.data);`);
+lines.push(`    else { results.push(data); break; }`);
+lines.push(`  }`);
+lines.push(`  return results;`);
+lines.push(`}\n`);
   // توليد دالة لكل endpoint
   spec.endpoints.forEach((endpoint: Endpoint) => {
     const fnName = endpoint.operationId;
