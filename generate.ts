@@ -3,8 +3,11 @@ import { generateTypeScriptSDK } from "./generators/typescript-generator";
 import { generatePythonSDK } from "./generators/python-generator";
 import { generateDartSDK } from "./generators/dart-generator";
 import { generateGoSDK } from "./generators/go-generator";
+import { generateJavaSDK } from "./generators/java-generator";
+
 const spec = parseOpenApi("./examples/openapi.json");
 generateTypeScriptSDK(spec, "./output/typescript");
 generatePythonSDK(spec, "./output/python");
 generateDartSDK(spec, "./output/dart");
 generateGoSDK(spec, "./output/go");
+generateJavaSDK(spec, "./output/java");
