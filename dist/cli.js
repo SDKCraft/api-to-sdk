@@ -17,12 +17,12 @@ function getArg(flag) {
 const input = getArg("--input");
 const lang = getArg("--lang");
 const output = getArg("--output");
-const validLangs = ["typescript", "python", "dart", "all"];
+const validLangs = ["typescript", "python", "dart", "go", "java", "all"];
 // التحقق من الـ arguments
 if (!input || !lang || !output) {
     console.error("❌ Missing required arguments.\n");
     console.log("Usage: api-to-sdk --input <file> --lang <language> --output <dir>");
-    console.log("Languages: typescript | python | dart | all");
+    console.log("Languages: typescript | python | dart | go | java | all");
     console.log("\nExample:");
     console.log("  api-to-sdk --input ./api.json --lang all --output ./sdk");
     process.exit(1);

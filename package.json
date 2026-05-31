@@ -1,10 +1,10 @@
 {
-  "name": "api-to-sdk",
+  "name": "sdkcraft",
   "version": "1.0.0",
-  "description": "Generate TypeScript, Python, and Dart SDKs from OpenAPI specs",
+  "description": "Generate production-ready SDKs from OpenAPI specs in TypeScript, Python, Dart, Go, and Java",
   "main": "dist/cli.js",
   "bin": {
-    "api-to-sdk": "dist/cli.js"
+    "sdkcraft": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -16,7 +16,10 @@
     "generator",
     "typescript",
     "python",
-    "dart"
+    "dart",
+    "go",
+    "java",
+    "cli"
   ],
   "author": "Ihsan Elashhab",
   "license": "MIT",
