@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -71,6 +72,19 @@ app.post("/generate", upload.single("file"), (req, res) => {
       files,
     });
 
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/generate-docs", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    const { generateAIDocs } = await import("./generators/doc-generator");
+    const spec = parseOpenApi(req.file.path);
+    const docs = await generateAIDocs(spec);
+    fs.rmSync(req.file.path, { force: true });
+    res.json({ success: true, docs });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
