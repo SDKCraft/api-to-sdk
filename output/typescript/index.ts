@@ -86,7 +86,7 @@ export async function getUsers(params?: Record<string, string>): Promise<User[]>
 
 /** Create a new user */
 export async function createUser(body?: CreateUserRequest): Promise<User> {
-  return request<User>("POST", `/users`, body as Record<string, unknown>);
+  return request<User>("POST", `/users`, body as unknown as Record<string, unknown>);
 }
 
 /** Get user by ID */
