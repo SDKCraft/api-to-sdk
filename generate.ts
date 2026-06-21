@@ -12,3 +12,5 @@ generateDartSDK(spec, "./output/dart");
 generateGoSDK(spec, "./output/go");
 generateJavaSDK(spec, "./output/java");
 generateKotlinSDK(spec, "./output/kotlin");
+import { generateCSharpSDK } from "./generators/csharp-generator";
+generateCSharpSDK(spec, "./output/csharp");
