@@ -13,6 +13,7 @@ import {
   generateGoSDK,
   generateJavaSDK,
   generateKotlinSDK,
+  generateCSharpSDK,
   generateSwiftSDK,
 } from "sdkcraft-core";
 
@@ -48,6 +49,7 @@ app.post("/generate", upload.single("file"), (req, res) => {
     if (langs.includes("go"))         generateGoSDK(spec, path.join(outputDir, "go"));
     if (langs.includes("java"))       generateJavaSDK(spec, path.join(outputDir, "java"));
 if (langs.includes("kotlin"))     generateKotlinSDK(spec, path.join(outputDir, "kotlin"));
+if (langs.includes("csharp"))     generateCSharpSDK(spec, path.join(outputDir, "csharp"));
 if (langs.includes("swift"))     generateSwiftSDK(spec, path.join(outputDir, "swift"));
     // جمع كل الملفات المولّدة
     const files: Record<string, string> = {};
@@ -138,6 +140,7 @@ app.post("/detect-changes", upload.fields([
         if (langs.includes("go"))         generateGoSDK(spec, path.join(outputDir, "go"));
         if (langs.includes("java"))       generateJavaSDK(spec, path.join(outputDir, "java"));
 if (langs.includes("kotlin"))     generateKotlinSDK(spec, path.join(outputDir, "kotlin"));
+if (langs.includes("csharp"))     generateCSharpSDK(spec, path.join(outputDir, "csharp"));
 if (langs.includes("swift"))     generateSwiftSDK(spec, path.join(outputDir, "swift"));
         const generatedFiles: Record<string, string> = {};
         const collectFiles = (dir: string, prefix = "") => {
