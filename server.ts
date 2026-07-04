@@ -186,6 +186,23 @@ if (langs.includes("swift"))     generateSwiftSDK(spec, path.join(outputDir, "sw
     res.status(500).json({ error: error.message });
   }
 });
+app.post("/github-token", async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: "No code provided" });
+  try {
+    const response = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ client_id: "Ov23likCdgCy06sl4WWk", client_secret: process.env.GITHUB_CLIENT_SECRET, code }),
+    });
+    const data = await response.json();
+    if (data.error) return res.status(400).json({ error: data.error });
+    res.json({ token: data.access_token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", name: "SDKCraft API" });
 });
