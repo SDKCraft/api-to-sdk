@@ -1,3 +1,9 @@
 node_modules/
 .env
 dist/
+
+# Generated SDK output (test artifacts, not source code)
+final-output/
+output/
+sdk-output/
+sdk-test/
