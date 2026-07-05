@@ -66,6 +66,63 @@ if (langs.includes("swift"))     generateSwiftSDK(spec, path.join(outputDir, "sw
     };
     collectFiles(outputDir);
 
+    // Add a ready-to-use GitHub Actions workflow so users get CI/CD regeneration out of the box
+    const langsList = JSON.stringify(langs);
+    files[".github/workflows/regenerate-sdk.yml"] = `name: Regenerate SDK (SDKCraft)
+
+# This workflow automatically regenerates your SDK whenever your OpenAPI spec changes.
+# 1. Update SPEC_PATH below to point to your OpenAPI spec file in this repo.
+# 2. Commit this file to your repository's default branch.
+
+on:
+  push:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+      - '**/*.json'
+
+env:
+  SPEC_PATH: openapi.yaml   # <-- change this to your actual spec file path
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Call SDKCraft API to regenerate SDK
+        run: |
+          curl -s -X POST https://api-to-sdk-production.up.railway.app/generate \\
+            -F "file=@\${SPEC_PATH}" \\
+            -F 'langs=${langsList}' \\
+            -o sdkcraft-output.json
+
+      - name: Write regenerated files
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const data = JSON.parse(fs.readFileSync('sdkcraft-output.json', 'utf8'));
+            if (!data.files) { console.error('SDKCraft API error:', data.error || 'unknown'); process.exit(1); }
+            for (const [filename, fileContent] of Object.entries(data.files)) {
+              const dir = path.dirname(filename);
+              if (dir !== '.') fs.mkdirSync(dir, { recursive: true });
+              fs.writeFileSync(filename, fileContent);
+            }
+          "
+          rm sdkcraft-output.json
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "SDKCraft Bot"
+          git config user.email "bot@sdkcraft.dev"
+          git add .
+          git diff --staged --quiet || git commit -m "chore: regenerate SDK from updated OpenAPI spec"
+          git push
+`;
+
     // تنظيف الملفات المؤقتة
     fs.rmSync(inputPath, { force: true });
     fs.rmSync(outputDir, { recursive: true, force: true });
