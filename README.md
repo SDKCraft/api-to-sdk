@@ -2,7 +2,7 @@
 
 > Generate production-ready SDKs from any OpenAPI spec in seconds.
 
-Supports **TypeScript**, **Python**, and **Dart/Flutter** out of the box.
+Supports **8 languages** out of the box: **TypeScript, Python, Go, Java, C#, Kotlin, Swift, and Dart**.
 
 ---
 
@@ -10,10 +10,14 @@ Supports **TypeScript**, **Python**, and **Dart/Flutter** out of the box.
 
 - 📄 Supports OpenAPI 3.0 (JSON & YAML)
 - 🔐 Authentication: API Key & Bearer Token
-- 🌍 Multi-language: TypeScript, Python, Dart/Flutter
-- ⚡ Fast: Generate a full SDK in under a second
-- 🛡️ Error handling built-in
-- 🔧 CLI-based workflow
+- 🌍 Multi-language: TypeScript, Python, Go, Java, C#, Kotlin, Swift, Dart
+- 🧱 Typed models/structs/classes in every language (no `dynamic`, no raw `Map`)
+- 🛡️ Structured errors (`SDKError`/`SDKException`) with status code and response body
+- 🔁 Smart retry logic (idempotent GET requests only, on 429/5xx/network errors)
+- ⏱️ Request timeouts built in
+- 🎭 **MockClient** in every language — same interface as the real client, returns realistic fake data, for offline frontend development and testing without a live backend
+- ⚡ Fast: generate a full SDK in under a second
+- 🔧 CLI-based workflow, also available as a web app
 
 ---
 
@@ -42,64 +46,33 @@ api-to-sdk --input ./openapi.json --lang all --output ./sdk
 
 ### TypeScript
 ```typescript
-import { setApiKey, getUsers, createUser } from "./sdk";
+import { Client } from "./sdk";
 
-setApiKey("your-api-key");
+const client = new Client({ apiKey: "your-api-key" });
+const users = await client.getUsers({ limit: "10" });
+const newUser = await client.createUser({ name: "John", email: "john@example.com" });
 
-const users = await getUsers({ limit: 10 });
-const newUser = await createUser({ name: "John", email: "john@example.com" });
+// Or use MockClient for offline development — same interface, no network calls:
+import { MockClient } from "./sdk";
+const mockClient = new MockClient();
+const fakeUsers = await mockClient.getUsers();
 ```
 
 ### Python
 ```python
-from sdk import get_users, create_user
+from sdk import Client
 
-users = get_users(params={"limit": 10})
-new_user = create_user(body={"name": "John", "email": "john@example.com"})
+client = Client(api_key="your-api-key")
+users = client.get_users(params={"limit": "10"})
+new_user = client.create_user(body={"name": "John", "email": "john@example.com"})
 ```
 
-### Dart/Flutter
-```dart
-setApiKey("your-api-key");
-
-final users = await getUsers(params: {"limit": "10"});
-final newUser = await createUser(body: {"name": "John"});
+### Go
+```go
+client := sdk.NewClient(sdk.ClientOptions{APIKey: "your-api-key"})
+users, err := client.GetUsers(ctx, nil)
 ```
 
 ---
 
 ## 🏗 Project Structure
-
-```
-api-to-sdk/
-├── parsers/          # OpenAPI parser (JSON & YAML)
-├── generators/       # SDK generators per language
-│   ├── typescript-generator.ts
-│   ├── python-generator.ts
-│   └── dart-generator.ts
-├── examples/         # Example OpenAPI specs
-├── output/           # Generated SDKs
-└── cli.ts            # CLI interface
-```
-└── cli.ts            # CLI interface
-```
-
----
-## 🗺️ Roadmap
-
-- [x] TypeScript SDK
-- [x] Python SDK
-- [x] Dart/Flutter SDK
-- [x] YAML support
-- [x] Authentication support
-- [ ] Go SDK
-- [ ] Java SDK
-- [ ] Web UI (drag & drop)
-- [ ] Auto-generated Tests
-
----
-
-## 📄 License
-
-MIT © Ihsan Elashhab# Test deploy trigger
-# trigger
