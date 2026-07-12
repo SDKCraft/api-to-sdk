@@ -76,3 +76,40 @@ users, err := client.GetUsers(ctx, nil)
 ---
 
 ## 🏗 Project Structure
+
+api-to-sdk/
+├── parsers/                    # OpenAPI parser (JSON & YAML)
+├── generators/                 # SDK generators per language
+│   ├── typescript-generator.ts (+ typescript/generators/)
+│   ├── python-generator.ts     (+ python/generators/)
+│   ├── go-generator.ts         (+ go/generators/)
+│   ├── java-generator.ts       (+ java/generators/)
+│   ├── csharp-generator.ts     (+ csharp/generators/)
+│   ├── kotlin-generator.ts     (+ kotlin/generators/)
+│   ├── swift-generator.ts      (+ swift/generators/)
+│   └── dart-generator.ts       (+ dart/generators/)
+├── examples/                   # Example OpenAPI specs
+├── output/                     # Generated SDKs
+└── cli.ts                      # CLI interface
+---
+
+## 🗺️ Roadmap
+
+- [x] TypeScript SDK (Client class, typed models, MockClient)
+- [x] Python SDK (Client class, Pydantic models, MockClient)
+- [x] Go SDK (typed structs, context.Context, MockClient)
+- [x] Java SDK (Jackson POJOs, MockClient)
+- [x] C# SDK (async/await, typed classes, MockClient)
+- [x] Kotlin SDK (kotlinx.serialization, coroutines, MockClient)
+- [x] Swift SDK (async/await, Codable, MockClient)
+- [x] Dart SDK (typed classes, MockClient)
+- [x] YAML support
+- [x] Authentication support
+- [x] Web UI (SDKCraft Web)
+- [ ] Auto-generated tests
+
+---
+
+## 📄 License
+
+MIT © SDKCraft
