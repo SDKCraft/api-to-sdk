@@ -1,11 +1,18 @@
 import { ApiSpec } from "../parsers/openapi-parser";
 
-const MODELS = [
+// موديلات مجانية أولاً (تكلفة صفر) - لو كلهم فشلوا (مثلاً بسبب rate limit عام
+// على الموديلات المجانية في OpenRouter وقت الضغط)، نلجأ لموديل مدفوع رخيص
+// (Claude Haiku) كضمانة نهائية للاعتمادية، بدل ما يفشل الطلب بالكامل للمستخدم.
+const FREE_MODELS = [
   "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
 ];
+
+const PAID_FALLBACK_MODEL = "anthropic/claude-haiku-4.5";
+
+const MODELS = [...FREE_MODELS, PAID_FALLBACK_MODEL];
 
 export async function generateAIDocs(api: ApiSpec): Promise<string> {
   const prompt = `You are a technical documentation expert.
@@ -40,7 +47,8 @@ request/response examples, error codes
       const data = await response.json() as any;
       const text = data.choices?.[0]?.message?.content;
       if (text) {
-        console.log(`✅ Used model: ${model}`);
+        const isPaid = model === PAID_FALLBACK_MODEL;
+        console.log(`✅ Used model: ${model}${isPaid ? " (paid fallback — free models unavailable)" : ""}`);
         return text;
       }
       console.log(`⚠️ Model ${model} returned empty, trying next...`);
