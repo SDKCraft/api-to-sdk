@@ -18,6 +18,41 @@ import {
 } from "sdkcraft-core";
 import { scoreSDK } from "./utils/sdk-scorer";
 const app = express();
+
+// ---- Rate Limiting ----
+// ملاحظة مهمة: الحدود دي محفوظة في الذاكرة (in-memory)، يعني هتتصفر مع كل
+// إعادة تشغيل للسيرفر (زي "spin down" في Render Free Tier عند عدم النشاط).
+// للحصول على حد شهري دقيق 100% ومستمر عبر إعادة التشغيل، لازم ننقلها لاحقًا
+// لتخزين دائم عبر Supabase (المتاح أصلاً في المشروع) مربوط بحساب المستخدم.
+
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+// توليد SDK الأساسي: حد سخي لأنه بدون تكلفة API خارجية، وهو أهم نقطة تجربة أولى للمستخدم
+const generateLimiter = rateLimit({
+  windowMs: MONTH_MS,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Free tier limit reached: 50 SDK generations per month. Try again next month, or contact us for higher limits." },
+});
+
+// توثيق الـ AI (بيستخدم Llama 3.3 70B المجاني عبر OpenRouter) - تكلفة حقيقية، حد أضيق
+const aiDocsLimiter = rateLimit({
+  windowMs: MONTH_MS,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Free tier limit reached: 5 AI-powered doc generations per month. Try again next month, or contact us for higher limits." },
+});
+
+// API change detection + Batch upload: عمليات أثقل، حد أضيق كمان (مؤقتًا بالـ IP لحد ما يكتمل نظام الحسابات)
+const advancedFeaturesLimiter = rateLimit({
+  windowMs: MONTH_MS,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Free tier limit reached: 3 uses per month for this feature. Try again next month, or contact us for higher limits." },
+});
 const storage = multer.diskStorage({
   destination: "uploads/",   filename: (_req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
@@ -28,7 +63,7 @@ const upload = multer({ storage });
 app.use(cors());
 app.use(express.json());
 
-app.post("/generate", upload.single("file"), (req, res) => {
+app.post("/generate", generateLimiter, upload.single("file"), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -143,7 +178,7 @@ res.json({
   }
 });
 
-app.post("/generate-docs", upload.single("file"), async (req, res) => {
+app.post("/generate-docs", aiDocsLimiter, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     const { generateAIDocs } = await import("./generators/doc-generator");
@@ -156,14 +191,14 @@ app.post("/generate-docs", upload.single("file"), async (req, res) => {
   }
 });
 // رفع عدة ملفات دفعة واحدة
-app.post("/generate-batch", upload.array("files", 20), async (req, res) => {
+app.post("/generate-batch", advancedFeaturesLimiter, upload.array("files", 20), async (req, res) => {
   try {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ error: "No files uploaded" });
     }
 // API Change Detection
-app.post("/detect-changes", upload.fields([
+app.post("/detect-changes", advancedFeaturesLimiter, upload.fields([
   { name: "oldFile", maxCount: 1 },
   { name: "newFile", maxCount: 1 }
 ]), async (req, res) => {
@@ -262,27 +297,6 @@ app.post("/github-token", async (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", name: "SDKCraft API" });
-});
- // API Change Detection
-app.post("/detect-changes", upload.fields([
-  { name: "oldFile", maxCount: 1 },
-  { name: "newFile", maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    if (!files.oldFile || !files.newFile) {
-      return res.status(400).json({ error: "Please upload both old and new API files" });
-    }
-    const { detectChanges } = await import("./utils/change-detector");
-    const oldSpec = parseOpenApi(files.oldFile[0].path);
-    const newSpec = parseOpenApi(files.newFile[0].path);
-    const report = detectChanges(oldSpec, newSpec);
-    fs.rmSync(files.oldFile[0].path, { force: true });
-    fs.rmSync(files.newFile[0].path, { force: true });
-    res.json({ success: true, report });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
 });
 const PORT = 4000;
 app.listen(PORT, () => {
