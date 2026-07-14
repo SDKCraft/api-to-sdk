@@ -129,7 +129,7 @@ jobs:
 
       - name: Call SDKCraft API to regenerate SDK
         run: |
-          curl -s -X POST https://api-to-sdk-production.up.railway.app/generate \\
+          curl -s -X POST https://api-to-sdk.onrender.com/generate \\
             -F "file=@\${SPEC_PATH}" \\
             -F 'langs=${langsList}' \\
             -o sdkcraft-output.json
