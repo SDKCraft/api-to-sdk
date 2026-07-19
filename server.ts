@@ -20,38 +20,41 @@ import { scoreSDK } from "./utils/sdk-scorer";
 const app = express();
 
 // ---- Rate Limiting ----
-// ملاحظة مهمة: الحدود دي محفوظة في الذاكرة (in-memory)، يعني هتتصفر مع كل
-// إعادة تشغيل للسيرفر (زي "spin down" في Render Free Tier عند عدم النشاط).
-// للحصول على حد شهري دقيق 100% ومستمر عبر إعادة التشغيل، لازم ننقلها لاحقًا
-// لتخزين دائم عبر Supabase (المتاح أصلاً في المشروع) مربوط بحساب المستخدم.
+// طبقة حماية تقنية (على مستوى الـ IP) بجانب الحد اليومي الفعلي لكل مستخدم
+// (المطبّق في الفرونت إند + Supabase user_tokens). الهدف هنا حماية السيرفر
+// من الإساءة الآلية (bots/scripts)، مش تحديد نموذج التسعير.
+// ملاحظة: الحدود دي محفوظة في الذاكرة (in-memory)، يعني هتتصفر مع كل
+// إعادة تشغيل للسيرفر (زي "spin down" في Render Free Tier عند عدم النشاط) —
+// ده مقبول لأنها طبقة حماية إضافية مش المصدر الأساسي لفرض الحد.
 
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-// توليد SDK الأساسي: حد سخي لأنه بدون تكلفة API خارجية، وهو أهم نقطة تجربة أولى للمستخدم
+// توليد SDK الأساسي: 8/يوم لكل مستخدم (الفرونت إند)، فحطينا هامش هنا يسمح
+// لعدة مستخدمين خلف نفس الـ IP (شبكة شركة/جامعة) من غير ما يتصادموا مع بعض.
 const generateLimiter = rateLimit({
-  windowMs: MONTH_MS,
-  max: 50,
+  windowMs: DAY_MS,
+  max: 40,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Free tier limit reached: 50 SDK generations per month. Try again next month, or contact us for higher limits." },
+  message: { error: "Rate limit reached for this network. Try again in a few hours, or contact us for higher limits." },
 });
 
-// توثيق الـ AI (بيستخدم Llama 3.3 70B المجاني عبر OpenRouter) - تكلفة حقيقية، حد أضيق
+// توثيق الـ AI: غالبًا موديلات مجانية عبر OpenRouter (Claude Haiku fallback نادر ورخيص جدًا)
 const aiDocsLimiter = rateLimit({
-  windowMs: MONTH_MS,
-  max: 5,
+  windowMs: DAY_MS,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Free tier limit reached: 5 AI-powered doc generations per month. Try again next month, or contact us for higher limits." },
+  message: { error: "Rate limit reached for this network. Try again in a few hours, or contact us for higher limits." },
 });
 
-// API change detection + Batch upload: عمليات أثقل، حد أضيق كمان (مؤقتًا بالـ IP لحد ما يكتمل نظام الحسابات)
+// API change detection + Batch upload: عمليات أثقل نسبيًا
 const advancedFeaturesLimiter = rateLimit({
-  windowMs: MONTH_MS,
-  max: 3,
+  windowMs: DAY_MS,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Free tier limit reached: 3 uses per month for this feature. Try again next month, or contact us for higher limits." },
+  message: { error: "Rate limit reached for this network. Try again in a few hours, or contact us for higher limits." },
 });
 const storage = multer.diskStorage({
   destination: "uploads/",   filename: (_req, file, cb) => {

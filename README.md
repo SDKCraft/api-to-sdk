@@ -15,7 +15,7 @@ Supports **8 languages** out of the box: **TypeScript, Python, Go, Java, C#, Kot
 - 🛡️ Structured errors (`SDKError`/`SDKException`) with status code and response body
 - 🔁 Smart retry logic (idempotent GET requests only, on 429/5xx/network errors)
 - ⏱️ Request timeouts built in
-- 🎭 **MockClient** in every language — same interface as the real client, returns realistic fake data, for offline frontend development and testing without a live backend
+- 🎭 **MockClient** in every language — same interface as the real client, returns realistic fake data, for offline frontend development and testing without a live backend (under building)
 - ⚡ Fast: generate a full SDK in under a second
 - 🔧 CLI-based workflow, also available as a web app
 

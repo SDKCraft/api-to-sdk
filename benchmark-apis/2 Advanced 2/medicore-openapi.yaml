@@ -1,0 +1,4266 @@
+openapi: 3.1.0
+info:
+  title: MediCore Hospital Management System API
+  summary: Comprehensive hospital operations API
+  description: 'MediCore is a full hospital management platform covering patient intake, clinical records,
+    scheduling, pharmacy, billing, inventory, reporting, and administration. This specification is intentionally
+    broad in scope and is used as a conformance/stress-test fixture: it exercises authentication schemes,
+    composite schemas (oneOf/anyOf/allOf with discriminators), file upload/download, pagination, filtering,
+    sorting, webhooks, and callbacks.'
+  version: 1.4.0
+  contact:
+    name: MediCore API Team
+    email: api-support@medicore.example
+    url: https://developers.medicore.example
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://medicore.example/terms
+servers:
+- url: https://api.medicore.example/v1
+  description: Production
+- url: https://api.staging.medicore.example/v1
+  description: Staging
+- url: https://api.sandbox.medicore.example/v1
+  description: Sandbox (synthetic data, safe for testing)
+- url: http://localhost:8080/v1
+  description: Local development
+tags:
+- name: Authentication
+  description: Account creation, login, tokens, and password recovery
+- name: Users
+  description: Platform user (staff) accounts and profile assets
+- name: Patients
+  description: Patient records and patient-owned documents
+- name: Doctors
+  description: Doctor profiles and schedules
+- name: Appointments
+  description: Booking, rescheduling, and lifecycle of visits
+- name: Medical Records
+  description: Clinical encounter documentation
+- name: Prescriptions
+  description: Medication orders issued to patients
+- name: Billing
+  description: Invoices and payments
+- name: Inventory
+  description: Pharmacy and supply stock management
+- name: Reports
+  description: Operational and financial reporting
+- name: Notifications
+  description: In-app and external notification delivery
+- name: Files
+  description: Generic binary object storage
+- name: Admin
+  description: Platform configuration, roles, and audit trail
+- name: Webhooks
+  description: Events pushed to subscriber-supplied URLs (see /notifications/subscribe)
+security:
+- BearerAuth: []
+- ApiKeyAuth: []
+paths:
+  /auth/register:
+    post:
+      tags:
+      - Authentication
+      summary: Register a new staff user account
+      operationId: registerUser
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: RegisterRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': &id002
+          $ref: '#/components/responses/BadRequest'
+        '401': &id001
+          $ref: '#/components/responses/Unauthorized'
+        '403': &id003
+          $ref: '#/components/responses/Forbidden'
+        '429': &id004
+          $ref: '#/components/responses/TooManyRequests'
+        '500': &id005
+          $ref: '#/components/responses/ServerError'
+  /auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Authenticate with email and password
+      operationId: login
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: LoginRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/LoginRequestExample'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401': *id001
+        '400': *id002
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Exchange a refresh token for a new access token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        description: RefreshTokenRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New token pair issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401': *id001
+        '400': *id002
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Invalidate the current session's tokens
+      operationId: logout
+      responses:
+        '204':
+          description: Logged out successfully.
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /auth/forgot-password:
+    post:
+      tags:
+      - Authentication
+      summary: Request a password-reset email
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        description: ForgotPasswordRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '202':
+          description: If the email exists, a reset link has been sent.
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /auth/reset-password:
+    post:
+      tags:
+      - Authentication
+      summary: Reset password using a valid reset token
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        description: ResetPasswordRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password updated successfully.
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /users:
+    get:
+      tags:
+      - Users
+      summary: List staff users
+      operationId: listUsers
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of User resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Users
+      summary: Create a staff user
+      operationId: createUser
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: UserCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /users/{userId}:
+    get:
+      tags:
+      - Users
+      summary: Get a staff user by ID
+      operationId: getUser
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Users
+      summary: Update a staff user
+      operationId: updateUser
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: UserUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: The updated User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Users
+      summary: Deactivate/delete a staff user
+      operationId: deleteUser
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /users/{userId}/avatar:
+    post:
+      tags:
+      - Users
+      summary: Upload or replace a user's avatar image
+      operationId: uploadUserAvatar
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        $ref: '#/components/requestBodies/FileUploadBody'
+      responses:
+        '201':
+          description: Avatar uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMetadata'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    get:
+      tags:
+      - Users
+      summary: Download a user's avatar image
+      operationId: downloadUserAvatar
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Binary image content.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /patients:
+    get:
+      tags:
+      - Patients
+      summary: List patients
+      operationId: listPatients
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: gender
+        in: query
+        schema:
+          $ref: '#/components/schemas/Gender'
+        description: Filter by gender.
+      - name: bloodType
+        in: query
+        schema:
+          $ref: '#/components/schemas/BloodType'
+        description: Filter by blood type.
+      - name: createdAfter
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: Filter to patients created after this timestamp.
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Patient resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Patient'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Patients
+      summary: Register a new patient
+      operationId: createPatient
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: PatientCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientCreate'
+      responses:
+        '201':
+          description: Patient created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /patients/{patientId}:
+    get:
+      tags:
+      - Patients
+      summary: Get a patient by ID
+      operationId: getPatient
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Patient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+              examples:
+                sample:
+                  $ref: '#/components/examples/PatientExample'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Patients
+      summary: Update a patient
+      operationId: updatePatient
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: PatientUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdate'
+      responses:
+        '200':
+          description: The updated Patient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Patients
+      summary: Delete a patient record
+      operationId: deletePatient
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /patients/{patientId}/medical-records:
+    get:
+      tags:
+      - Patients
+      - Medical Records
+      summary: List medical records for a patient
+      operationId: listPatientMedicalRecords
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: Medical records belonging to the patient.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MedicalRecord'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /patients/{patientId}/documents:
+    post:
+      tags:
+      - Patients
+      - Files
+      summary: Upload a document owned by a patient (e.g. scan, referral letter)
+      operationId: uploadPatientDocument
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        $ref: '#/components/requestBodies/FileUploadBody'
+      responses:
+        '201':
+          description: Document uploaded and linked to the patient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMetadata'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /doctors:
+    get:
+      tags:
+      - Doctors
+      summary: List doctors
+      operationId: listDoctors
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: specialty
+        in: query
+        schema:
+          $ref: '#/components/schemas/Specialty'
+        description: Filter by specialty.
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Doctor resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Doctor'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Doctors
+      summary: Add a doctor profile
+      operationId: createDoctor
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: DoctorCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorCreate'
+      responses:
+        '201':
+          description: Doctor created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /doctors/{doctorId}:
+    get:
+      tags:
+      - Doctors
+      summary: Get a doctor by ID
+      operationId: getDoctor
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Doctor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Doctors
+      summary: Update a doctor profile
+      operationId: updateDoctor
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: DoctorUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorUpdate'
+      responses:
+        '200':
+          description: The updated Doctor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Doctors
+      summary: Remove a doctor profile
+      operationId: deleteDoctor
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /doctors/{doctorId}/schedule:
+    get:
+      tags:
+      - Doctors
+      summary: Get a doctor's weekly availability schedule
+      operationId: getDoctorSchedule
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The doctor's weekly schedule.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduleSlot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /appointments:
+    get:
+      tags:
+      - Appointments
+      summary: List appointments
+      operationId: listAppointments
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/AppointmentStatus'
+        description: Filter by status.
+      - name: doctorId
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Filter by doctor.
+      - name: patientId
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Filter by patient.
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: Only appointments scheduled on/after this timestamp.
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: Only appointments scheduled on/before this timestamp.
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Appointment resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Appointments
+      summary: Book a new appointment
+      operationId: createAppointment
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: AppointmentCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreate'
+      responses:
+        '201':
+          description: Appointment created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /appointments/{appointmentId}:
+    get:
+      tags:
+      - Appointments
+      summary: Get an appointment by ID
+      operationId: getAppointment
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Appointment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Appointments
+      summary: Reschedule or update an appointment
+      operationId: updateAppointment
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: AppointmentUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentUpdate'
+      responses:
+        '200':
+          description: The updated Appointment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Appointments
+      summary: Delete an appointment record
+      operationId: deleteAppointment
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+      deprecated: true
+  /appointments/{appointmentId}/cancel:
+    post:
+      tags:
+      - Appointments
+      summary: Cancel an appointment
+      operationId: cancelAppointment
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        description: AppointmentCancelRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCancelRequest'
+      responses:
+        '200':
+          description: Appointment cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /appointments/{appointmentId}/confirm:
+    post:
+      tags:
+      - Appointments
+      summary: Confirm a requested appointment
+      operationId: confirmAppointment
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Appointment confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /medical-records:
+    get:
+      tags:
+      - Medical Records
+      summary: List medical records
+      operationId: listMedicalRecords
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: patientId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: doctorId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of MedicalRecord resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MedicalRecord'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Medical Records
+      summary: Create a medical record
+      operationId: createMedicalRecord
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: MedicalRecordCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicalRecordCreate'
+      responses:
+        '201':
+          description: MedicalRecord created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /medical-records/{recordId}:
+    get:
+      tags:
+      - Medical Records
+      summary: Get a medical record by ID
+      operationId: getMedicalRecord
+      parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested MedicalRecord.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Medical Records
+      summary: Update a medical record
+      operationId: updateMedicalRecord
+      parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: MedicalRecordUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicalRecordUpdate'
+      responses:
+        '200':
+          description: The updated MedicalRecord.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Medical Records
+      summary: Delete a medical record
+      operationId: deleteMedicalRecord
+      parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /prescriptions:
+    get:
+      tags:
+      - Prescriptions
+      summary: List prescriptions
+      operationId: listPrescriptions
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: patientId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: isFilled
+        in: query
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Prescription resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prescription'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Prescriptions
+      summary: Issue a new prescription
+      operationId: createPrescription
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: PrescriptionCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreate'
+      responses:
+        '201':
+          description: Prescription created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /prescriptions/{prescriptionId}:
+    get:
+      tags:
+      - Prescriptions
+      summary: Get a prescription by ID
+      operationId: getPrescription
+      parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Prescription.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Prescriptions
+      summary: Update a prescription
+      operationId: updatePrescription
+      parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: PrescriptionUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionUpdate'
+      responses:
+        '200':
+          description: The updated Prescription.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Prescriptions
+      summary: Void a prescription
+      operationId: deletePrescription
+      parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /prescriptions/{prescriptionId}/pdf:
+    get:
+      tags:
+      - Prescriptions
+      - Files
+      summary: Download a printable PDF of the prescription
+      operationId: downloadPrescriptionPdf
+      parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The rendered PDF document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /invoices:
+    get:
+      tags:
+      - Billing
+      summary: List invoices
+      operationId: listInvoices
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/InvoiceStatus'
+      - name: patientId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Invoice resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Billing
+      summary: Create an invoice
+      operationId: createInvoice
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: InvoiceCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+      responses:
+        '201':
+          description: Invoice created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /invoices/{invoiceId}:
+    get:
+      tags:
+      - Billing
+      summary: Get an invoice by ID
+      operationId: getInvoice
+      parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Billing
+      summary: Update an invoice
+      operationId: updateInvoice
+      parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: InvoiceUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceUpdate'
+      responses:
+        '200':
+          description: The updated Invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Billing
+      summary: Void/delete a draft invoice
+      operationId: deleteInvoice
+      parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /invoices/{invoiceId}/pay:
+    post:
+      tags:
+      - Billing
+      summary: Record a payment against an invoice
+      operationId: payInvoice
+      parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: PayInvoiceRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayInvoiceRequest'
+            examples:
+              byCard:
+                summary: Pay by card
+                value:
+                  amount: 157.5
+                  payment:
+                    paymentMethod: credit_card
+                    cardLast4: '4242'
+                    cardBrand: visa
+              byBankTransfer:
+                summary: Pay by bank transfer
+                value:
+                  amount: 157.5
+                  payment:
+                    paymentMethod: bank_transfer
+                    bankName: Jumhouria Bank
+                    referenceNumber: TRX-2026-00981
+      responses:
+        '200':
+          description: Payment recorded; invoice updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /invoices/{invoiceId}/receipt:
+    get:
+      tags:
+      - Billing
+      - Files
+      summary: Download a PDF receipt for a paid invoice
+      operationId: downloadInvoiceReceipt
+      parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The rendered PDF receipt.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /inventory/items:
+    get:
+      tags:
+      - Inventory
+      summary: List inventory items
+      operationId: listInventoryItems
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: category
+        in: query
+        schema:
+          type: string
+          enum:
+          - medication
+          - consumable
+          - equipment
+      - name: belowReorderThreshold
+        in: query
+        schema:
+          type: boolean
+        description: If true, only return items at or below their reorder threshold.
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of InventoryItem resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InventoryItem'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Inventory
+      summary: Add a new inventory item
+      operationId: createInventoryItem
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: InventoryItemCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItemCreate'
+      responses:
+        '201':
+          description: InventoryItem created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /inventory/items/{itemId}:
+    get:
+      tags:
+      - Inventory
+      summary: Get an inventory item by ID
+      operationId: getInventoryItem
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested InventoryItem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Inventory
+      summary: Update an inventory item
+      operationId: updateInventoryItem
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        description: InventoryItemUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItemUpdate'
+      responses:
+        '200':
+          description: The updated InventoryItem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Inventory
+      summary: Remove an inventory item
+      operationId: deleteInventoryItem
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /inventory/items/{itemId}/restock:
+    post:
+      tags:
+      - Inventory
+      summary: Record a restock (quantity increase) for an item
+      operationId: restockInventoryItem
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        description: RestockRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestockRequest'
+      responses:
+        '200':
+          description: Item restocked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /reports/summary:
+    get:
+      tags:
+      - Reports
+      summary: Get a high-level operational dashboard summary
+      operationId: getReportsSummary
+      parameters:
+      - name: dateFrom
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: dateTo
+        in: query
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Aggregate operational metrics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalPatients:
+                    type: integer
+                  totalAppointments:
+                    type: integer
+                  totalRevenue:
+                    type: number
+                    format: double
+                  occupancyRate:
+                    type: number
+                    format: double
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /reports/revenue:
+    get:
+      tags:
+      - Reports
+      summary: Get revenue broken down by period
+      operationId: getRevenueReport
+      parameters:
+      - name: groupBy
+        in: query
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+        required: false
+      - name: dateFrom
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: dateTo
+        in: query
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Revenue time series.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    period:
+                      type: string
+                      example: 2026-06
+                    revenue:
+                      type: number
+                      format: double
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /reports/patients-stats:
+    get:
+      tags:
+      - Reports
+      summary: Get demographic and clinical statistics across patients
+      operationId: getPatientStatsReport
+      responses:
+        '200':
+          description: Patient statistics breakdown.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  byGender:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  byBloodType:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  averageAgeYears:
+                    type: number
+                    format: double
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /reports/export:
+    post:
+      tags:
+      - Reports
+      summary: Queue an asynchronous report export
+      operationId: exportReport
+      description: Queues a report export job. The response is returned immediately (202); when the export
+        finishes, MediCore will invoke the caller-supplied `callbackUrl` with the finished job details
+        (see the `reportReady` callback).
+      requestBody:
+        required: true
+        description: ReportExportRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportExportRequest'
+      responses:
+        '202':
+          description: Export job accepted and queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportAccepted'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+      callbacks:
+        reportReady:
+          '{$request.body#/callbackUrl}':
+            post:
+              summary: Notifies the caller that the requested export has finished.
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        jobId:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                          enum:
+                          - completed
+                          - failed
+                        downloadUrl:
+                          type:
+                          - string
+                          - 'null'
+                          description: Signed URL of the generated file
+                          format: uri
+              responses:
+                '200':
+                  description: Callback acknowledged by the receiving server.
+  /notifications:
+    get:
+      tags:
+      - Notifications
+      summary: List notifications for the authenticated principal
+      operationId: listNotifications
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: isRead
+        in: query
+        schema:
+          type: boolean
+      - name: type
+        in: query
+        schema:
+          $ref: '#/components/schemas/NotificationType'
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Notification resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /notifications/{notificationId}:
+    get:
+      tags:
+      - Notifications
+      summary: Get a notification by ID
+      operationId: getNotification
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: The requested Notification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Notifications
+      summary: Delete a notification
+      operationId: deleteNotification
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /notifications/{notificationId}/read:
+    patch:
+      tags:
+      - Notifications
+      summary: Mark a notification as read
+      operationId: markNotificationRead
+      parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Notification updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /notifications/subscribe:
+    post:
+      tags:
+      - Notifications
+      summary: Register a webhook subscription for notification events
+      operationId: subscribeToNotifications
+      security:
+      - OAuth2:
+        - patients:read
+      - ApiKeyAuth: []
+      requestBody:
+        required: true
+        description: NotificationSubscribeRequest payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSubscribeRequest'
+      responses:
+        '201':
+          description: Subscription registered.
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /files/{fileId}:
+    get:
+      tags:
+      - Files
+      summary: Download a file's binary content
+      operationId: downloadFile
+      parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Binary file content; Content-Type varies by stored file.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    delete:
+      tags:
+      - Files
+      summary: Delete a stored file
+      operationId: deleteFile
+      parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '204':
+          description: Deleted successfully; no content returned.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /admin/settings:
+    get:
+      tags:
+      - Admin
+      summary: Get tenant-wide settings
+      operationId: getSettings
+      security:
+      - OAuth2:
+        - admin
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Current settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsBundle'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    patch:
+      tags:
+      - Admin
+      summary: Update tenant-wide settings
+      operationId: updateSettings
+      security:
+      - OAuth2:
+        - admin
+      - BearerAuth: []
+      requestBody:
+        required: true
+        description: SettingsUpdate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdate'
+      responses:
+        '200':
+          description: Settings updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsBundle'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /admin/audit-logs:
+    get:
+      tags:
+      - Admin
+      summary: List audit log entries
+      operationId: listAuditLogs
+      security:
+      - OAuth2:
+        - admin
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - name: resourceType
+        in: query
+        schema:
+          type: string
+      - name: actorId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Audit log entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+  /admin/roles:
+    get:
+      tags:
+      - Admin
+      summary: List roles
+      operationId: listRoles
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/PageSizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/SearchParam'
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: A paginated list of Role resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+    post:
+      tags:
+      - Admin
+      summary: Create a custom role
+      operationId: createRole
+      parameters:
+      - $ref: '#/components/parameters/RequestIdHeader'
+      - $ref: '#/components/parameters/TenantHeader'
+      - $ref: '#/components/parameters/AcceptLanguageHeader'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        description: RoleCreate payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+      responses:
+        '201':
+          description: Role created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400': *id002
+        '401': *id001
+        '403': *id003
+        '429': *id004
+        '500': *id005
+webhooks:
+  appointmentCreated:
+    post:
+      summary: Fired when a new appointment is booked
+      operationId: webhook_appointment_created
+      tags:
+      - Webhooks
+      requestBody:
+        required: true
+        description: Delivered when a(n) `appointment.created` event occurs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreatedEvent'
+      responses:
+        '200':
+          description: Receiver acknowledges the event.
+  invoicePaid:
+    post:
+      summary: Fired when an invoice becomes fully paid
+      operationId: webhook_invoice_paid
+      tags:
+      - Webhooks
+      requestBody:
+        required: true
+        description: Delivered when a(n) `invoice.paid` event occurs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoicePaidEvent'
+      responses:
+        '200':
+          description: Receiver acknowledges the event.
+  prescriptionIssued:
+    post:
+      summary: Fired when a doctor issues a new prescription
+      operationId: webhook_prescription_issued
+      tags:
+      - Webhooks
+      requestBody:
+        required: true
+        description: Delivered when a(n) `prescription.issued` event occurs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionIssuedEvent'
+      responses:
+        '200':
+          description: Receiver acknowledges the event.
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token obtained from /auth/login or /auth/refresh.
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Static API key for server-to-server integrations (issued in the Admin console).
+    OAuth2:
+      type: oauth2
+      description: OAuth2 for third-party integrations acting on behalf of a hospital tenant.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.medicore.example/oauth/authorize
+          tokenUrl: https://auth.medicore.example/oauth/token
+          refreshUrl: https://auth.medicore.example/oauth/refresh
+          scopes:
+            patients:read: Read patient records
+            patients:write: Create or modify patient records
+            appointments:read: Read appointments
+            appointments:write: Create or modify appointments
+            billing:read: Read invoices and payments
+            billing:write: Create or modify invoices and payments
+            admin: Full administrative access
+        clientCredentials:
+          tokenUrl: https://auth.medicore.example/oauth/token
+          scopes:
+            patients:read: Read patient records
+            billing:read: Read invoices and payments
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: 1-indexed page number.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      required: false
+      description: Number of items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 20
+      example: 20
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      description: Field to sort by, optionally prefixed with '-' for descending order (e.g. '-createdAt').
+      schema:
+        type: string
+      example: -createdAt
+    SearchParam:
+      name: q
+      in: query
+      required: false
+      description: Free-text search across the resource's primary fields.
+      schema:
+        type: string
+    RequestIdHeader:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Client-supplied identifier echoed back for tracing; auto-generated if omitted.
+      schema:
+        type: string
+        format: uuid
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Identifier of the hospital tenant/branch making the request.
+      schema:
+        type: string
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Client-generated key that ensures a write operation is applied only once.
+      schema:
+        type: string
+    SessionCookie:
+      name: medicore_session
+      in: cookie
+      required: false
+      description: Optional session cookie set for browser-based dashboard clients.
+      schema:
+        type: string
+    AcceptLanguageHeader:
+      name: Accept-Language
+      in: header
+      required: false
+      description: Preferred response language.
+      schema:
+        type: string
+        enum:
+        - en
+        - ar
+        - fr
+        default: en
+  schemas:
+    Error:
+      type: object
+      description: Standard error envelope returned for all 4xx/5xx responses.
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+          example: RESOURCE_NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message.
+          example: Patient not found.
+        requestId:
+          type: string
+          format: uuid
+          description: Correlates the error with server-side logs.
+        details:
+          type: array
+          description: Optional list of granular field errors.
+          items:
+            $ref: '#/components/schemas/ValidationErrorDetail'
+    ValidationErrorDetail:
+      type: object
+      required:
+      - field
+      - issue
+      properties:
+        field:
+          type: string
+          example: email
+        issue:
+          type: string
+          example: must be a valid email address
+    PaginationMeta:
+      type: object
+      description: Pagination metadata included alongside every list response.
+      required:
+      - page
+      - pageSize
+      - totalItems
+      - totalPages
+      properties:
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 20
+        totalItems:
+          type: integer
+          example: 134
+        totalPages:
+          type: integer
+          example: 7
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          example: 12 Al Fateh Street
+        city:
+          type: string
+          example: Tripoli
+        state:
+          type:
+          - string
+          - 'null'
+          description: Governorate/state, if applicable
+          example: Tripoli District
+        postalCode:
+          type:
+          - string
+          - 'null'
+          description: Postal or ZIP code
+          example: 00218
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code.
+          example: LY
+        geo:
+          type: object
+          description: Optional geocoordinates.
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 32.8872
+            lng:
+              type: number
+              format: double
+              example: 13.1913
+    Metadata:
+      type: object
+      description: Free-form key/value store for tenant-specific custom fields (dictionary/map example).
+      additionalProperties:
+        type: string
+      example:
+        referredBy: Dr. Amina Salem
+        vipTier: gold
+    BaseEntity:
+      type: object
+      description: Common fields shared by all top-level persisted resources.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (UUID v4)
+          readOnly: true
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation timestamp (RFC 3339)
+          example: '2026-01-15T09:30:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Last update timestamp (RFC 3339)
+          example: '2026-02-01T14:12:00Z'
+    UserRole:
+      type: string
+      description: Role assigned to a staff user.
+      enum:
+      - admin
+      - receptionist
+      - nurse
+      - doctor
+      - pharmacist
+      - billing_officer
+      example: nurse
+    Gender:
+      type: string
+      enum:
+      - male
+      - female
+      - other
+      - unspecified
+      example: female
+    BloodType:
+      type: string
+      enum:
+      - A+
+      - A-
+      - B+
+      - B-
+      - AB+
+      - AB-
+      - O+
+      - O-
+      - unknown
+      example: O+
+    Specialty:
+      type: string
+      enum:
+      - cardiology
+      - dermatology
+      - endocrinology
+      - gastroenterology
+      - general_practice
+      - neurology
+      - obstetrics
+      - oncology
+      - orthopedics
+      - pediatrics
+      - psychiatry
+      - radiology
+      - surgery
+      - urology
+      example: cardiology
+    AppointmentStatus:
+      type: string
+      enum:
+      - requested
+      - confirmed
+      - checked_in
+      - in_progress
+      - completed
+      - cancelled
+      - no_show
+      example: confirmed
+    InvoiceStatus:
+      type: string
+      enum:
+      - draft
+      - issued
+      - partially_paid
+      - paid
+      - overdue
+      - void
+      example: issued
+    NotificationType:
+      type: string
+      enum:
+      - appointment_reminder
+      - lab_result_ready
+      - invoice_issued
+      - prescription_ready
+      - system_alert
+      example: appointment_reminder
+    NotificationChannel:
+      type: string
+      enum:
+      - email
+      - sms
+      - push
+      - in_app
+      example: push
+    RegisterRequest:
+      type: object
+      required:
+      - fullName
+      - email
+      - password
+      - role
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Salma Al-Barghathi
+        email:
+          type: string
+          format: email
+          example: salma.barghathi@medicore.example
+        password:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+        role:
+          $ref: '#/components/schemas/UserRole'
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          writeOnly: true
+        rememberMe:
+          type: boolean
+          default: false
+    ForgotPasswordRequest:
+      type: object
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordRequest:
+      type: object
+      required:
+      - token
+      - newPassword
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          writeOnly: true
+    RefreshTokenRequest:
+      type: object
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    TokenResponse:
+      type: object
+      required:
+      - accessToken
+      - refreshToken
+      - expiresIn
+      - tokenType
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT bearer token.
+        refreshToken:
+          type: string
+          description: Long-lived token used to obtain new access tokens.
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+          default: Bearer
+        expiresIn:
+          type: integer
+          description: Seconds until accessToken expires.
+          example: 3600
+    User:
+      description: 'A staff user account (allOf: BaseEntity + user-specific fields).'
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - fullName
+        - email
+        - role
+        properties:
+          fullName:
+            type: string
+            example: Salma Al-Barghathi
+          email:
+            type: string
+            format: email
+          role:
+            $ref: '#/components/schemas/UserRole'
+          isActive:
+            type: boolean
+            default: true
+          phone:
+            type:
+            - string
+            - 'null'
+            description: E.164 phone number
+            example: '+218912345678'
+          avatarUrl:
+            type:
+            - string
+            - 'null'
+            description: URL of the profile avatar image
+            format: uri
+          metadata:
+            $ref: '#/components/schemas/Metadata'
+    UserCreate:
+      type: object
+      required:
+      - fullName
+      - email
+      - role
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        phone:
+          type:
+          - string
+          - 'null'
+          description: E.164 phone number
+    UserUpdate:
+      type: object
+      description: Partial update payload; all fields optional (PATCH semantics).
+      properties:
+        fullName:
+          type: string
+        phone:
+          type:
+          - string
+          - 'null'
+          description: E.164 phone number
+        isActive:
+          type: boolean
+        role:
+          $ref: '#/components/schemas/UserRole'
+    EmergencyContact:
+      type: object
+      required:
+      - name
+      - phone
+      - relationship
+      properties:
+        name:
+          type: string
+          example: Mohamed Al-Barghathi
+        phone:
+          type: string
+          example: '+218917654321'
+        relationship:
+          type: string
+          example: spouse
+    Patient:
+      description: 'A patient record (allOf: BaseEntity + clinical/demographic fields).'
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - fullName
+        - dateOfBirth
+        - gender
+        properties:
+          fullName:
+            type: string
+            example: Aisha Al-Mansouri
+          dateOfBirth:
+            type: string
+            format: date
+            example: '1990-05-14'
+          gender:
+            $ref: '#/components/schemas/Gender'
+          bloodType:
+            $ref: '#/components/schemas/BloodType'
+          nationalId:
+            type:
+            - string
+            - 'null'
+            description: National identity number
+            example: '119900123456'
+          email:
+            type:
+            - string
+            - 'null'
+            description: Contact email
+            format: email
+          phone:
+            type:
+            - string
+            - 'null'
+            description: E.164 phone number
+            example: '+218921234567'
+          address:
+            $ref: '#/components/schemas/Address'
+          emergencyContacts:
+            type: array
+            description: One or more people to contact in an emergency.
+            items:
+              $ref: '#/components/schemas/EmergencyContact'
+            minItems: 0
+          allergies:
+            type: array
+            items:
+              type: string
+            description: Known allergies (free text), e.g. medication or food allergies.
+            example:
+            - penicillin
+            - peanuts
+          chronicConditions:
+            type: array
+            items:
+              type: string
+            example:
+            - type_2_diabetes
+            - hypertension
+          insuranceProvider:
+            type:
+            - string
+            - 'null'
+            description: Health insurance provider name
+            example: Al-Amana Insurance
+          metadata:
+            $ref: '#/components/schemas/Metadata'
+    PatientCreate:
+      type: object
+      required:
+      - fullName
+      - dateOfBirth
+      - gender
+      properties:
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        gender:
+          $ref: '#/components/schemas/Gender'
+        bloodType:
+          $ref: '#/components/schemas/BloodType'
+        phone:
+          type:
+          - string
+          - 'null'
+          description: E.164 phone number
+        address:
+          $ref: '#/components/schemas/Address'
+        emergencyContacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmergencyContact'
+    PatientUpdate:
+      type: object
+      properties:
+        phone:
+          type:
+          - string
+          - 'null'
+          description: E.164 phone number
+        address:
+          $ref: '#/components/schemas/Address'
+        allergies:
+          type: array
+          items:
+            type: string
+        chronicConditions:
+          type: array
+          items:
+            type: string
+        insuranceProvider:
+          type:
+          - string
+          - 'null'
+          description: Health insurance provider name
+    ScheduleSlot:
+      type: object
+      required:
+      - dayOfWeek
+      - startTime
+      - endTime
+      properties:
+        dayOfWeek:
+          type: string
+          enum:
+          - monday
+          - tuesday
+          - wednesday
+          - thursday
+          - friday
+          - saturday
+          - sunday
+        startTime:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+          example: 09:00
+        endTime:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+          example: '17:00'
+    Doctor:
+      description: 'A doctor profile (allOf: BaseEntity + professional fields).'
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - fullName
+        - specialty
+        - licenseNumber
+        properties:
+          fullName:
+            type: string
+            example: Dr. Khaled Zawi
+          specialty:
+            $ref: '#/components/schemas/Specialty'
+          secondarySpecialties:
+            type: array
+            items:
+              $ref: '#/components/schemas/Specialty'
+          licenseNumber:
+            type: string
+            example: LY-MED-88213
+          yearsOfExperience:
+            type: integer
+            minimum: 0
+            example: 12
+          consultationFee:
+            type: number
+            format: double
+            minimum: 0
+            example: 75.0
+          weeklySchedule:
+            type: array
+            items:
+              $ref: '#/components/schemas/ScheduleSlot'
+          bio:
+            type:
+            - string
+            - 'null'
+            description: Short professional biography
+          metadata:
+            $ref: '#/components/schemas/Metadata'
+    DoctorCreate:
+      type: object
+      required:
+      - fullName
+      - specialty
+      - licenseNumber
+      properties:
+        fullName:
+          type: string
+        specialty:
+          $ref: '#/components/schemas/Specialty'
+        licenseNumber:
+          type: string
+        consultationFee:
+          type: number
+          format: double
+          minimum: 0
+    DoctorUpdate:
+      type: object
+      properties:
+        consultationFee:
+          type: number
+          format: double
+          minimum: 0
+        bio:
+          type:
+          - string
+          - 'null'
+          description: Short professional biography
+        weeklySchedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleSlot'
+    Appointment:
+      description: A scheduled visit between a patient and a doctor.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - patientId
+        - doctorId
+        - scheduledAt
+        - status
+        properties:
+          patientId:
+            type: string
+            format: uuid
+          doctorId:
+            type: string
+            format: uuid
+          scheduledAt:
+            type: string
+            format: date-time
+            example: '2026-08-01T10:30:00Z'
+          durationMinutes:
+            type: integer
+            default: 30
+            minimum: 5
+            maximum: 240
+          status:
+            $ref: '#/components/schemas/AppointmentStatus'
+          reason:
+            type:
+            - string
+            - 'null'
+            description: Reason for visit as provided by the patient
+            example: Follow-up on blood pressure
+          notes:
+            type:
+            - string
+            - 'null'
+            description: Internal staff notes
+          cancellationReason:
+            type:
+            - string
+            - 'null'
+            description: Populated only if status is cancelled
+    AppointmentCreate:
+      type: object
+      required:
+      - patientId
+      - doctorId
+      - scheduledAt
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          default: 30
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Reason for visit
+    AppointmentUpdate:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        notes:
+          type:
+          - string
+          - 'null'
+          description: Internal staff notes
+    AppointmentCancelRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          example: Patient requested reschedule
+    VitalSigns:
+      type: object
+      description: Nested vital signs measurements captured during an encounter.
+      properties:
+        temperatureCelsius:
+          type: number
+          format: double
+          example: 37.1
+        heartRateBpm:
+          type: integer
+          example: 72
+        bloodPressureSystolic:
+          type: integer
+          example: 120
+        bloodPressureDiastolic:
+          type: integer
+          example: 80
+        respiratoryRate:
+          type: integer
+          example: 16
+        oxygenSaturation:
+          type: number
+          format: double
+          example: 98.0
+        weightKg:
+          type: number
+          format: double
+          example: 68.5
+        heightCm:
+          type: number
+          format: double
+          example: 165.0
+    MedicalRecord:
+      description: A clinical documentation entry tied to a patient (and optionally an appointment).
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - patientId
+        - doctorId
+        - visitDate
+        - diagnosis
+        properties:
+          patientId:
+            type: string
+            format: uuid
+          doctorId:
+            type: string
+            format: uuid
+          appointmentId:
+            type:
+            - string
+            - 'null'
+            format: uuid
+          visitDate:
+            type: string
+            format: date-time
+          vitalSigns:
+            $ref: '#/components/schemas/VitalSigns'
+          symptoms:
+            type: array
+            items:
+              type: string
+            example:
+            - headache
+            - fatigue
+          diagnosis:
+            type: string
+            example: Seasonal influenza
+          treatmentPlan:
+            type:
+            - string
+            - 'null'
+            description: Recommended treatment plan
+          attachments:
+            type: array
+            description: IDs of files (e.g. lab results, scans) linked to this record.
+            items:
+              type: string
+              format: uuid
+    MedicalRecordCreate:
+      type: object
+      required:
+      - patientId
+      - doctorId
+      - visitDate
+      - diagnosis
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        appointmentId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        visitDate:
+          type: string
+          format: date-time
+        vitalSigns:
+          $ref: '#/components/schemas/VitalSigns'
+        symptoms:
+          type: array
+          items:
+            type: string
+        diagnosis:
+          type: string
+        treatmentPlan:
+          type:
+          - string
+          - 'null'
+          description: Recommended treatment plan
+    MedicalRecordUpdate:
+      type: object
+      properties:
+        diagnosis:
+          type: string
+        treatmentPlan:
+          type:
+          - string
+          - 'null'
+          description: Recommended treatment plan
+        vitalSigns:
+          $ref: '#/components/schemas/VitalSigns'
+    Medication:
+      type: object
+      description: A single medication line item within a prescription (array item / nested model).
+      required:
+      - name
+      - dosage
+      - frequency
+      - durationDays
+      properties:
+        name:
+          type: string
+          example: Amoxicillin 500mg
+        dosage:
+          type: string
+          example: 1 capsule
+        frequency:
+          type: string
+          example: 3 times daily
+        durationDays:
+          type: integer
+          example: 7
+        instructions:
+          type:
+          - string
+          - 'null'
+          description: Additional instructions
+          example: Take after meals
+    Prescription:
+      description: A medication order issued to a patient.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - patientId
+        - doctorId
+        - medications
+        properties:
+          patientId:
+            type: string
+            format: uuid
+          doctorId:
+            type: string
+            format: uuid
+          medicalRecordId:
+            type:
+            - string
+            - 'null'
+            format: uuid
+          medications:
+            type: array
+            items:
+              $ref: '#/components/schemas/Medication'
+            minItems: 1
+          issuedAt:
+            type: string
+            format: date-time
+          expiresAt:
+            type:
+            - string
+            - 'null'
+            format: date-time
+          isFilled:
+            type: boolean
+            default: false
+    PrescriptionCreate:
+      type: object
+      required:
+      - patientId
+      - doctorId
+      - medications
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        medicalRecordId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        medications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Medication'
+          minItems: 1
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    PrescriptionUpdate:
+      type: object
+      properties:
+        medications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Medication'
+        isFilled:
+          type: boolean
+    InvoiceItem:
+      type: object
+      required:
+      - description
+      - unitPrice
+      - quantity
+      properties:
+        description:
+          type: string
+          example: Consultation - Cardiology
+        unitPrice:
+          type: number
+          format: double
+          example: 75.0
+        quantity:
+          type: integer
+          default: 1
+          minimum: 1
+        taxRate:
+          type: number
+          format: double
+          default: 0
+          example: 0.05
+    CreditCardPayment:
+      type: object
+      description: Payment made via credit or debit card.
+      required:
+      - paymentMethod
+      - cardLast4
+      - cardBrand
+      properties:
+        paymentMethod:
+          type: string
+          enum:
+          - credit_card
+        cardLast4:
+          type: string
+          pattern: ^\d{4}$
+          example: '4242'
+        cardBrand:
+          type: string
+          enum:
+          - visa
+          - mastercard
+          - amex
+          example: visa
+        authorizationCode:
+          type:
+          - string
+          - 'null'
+          description: Payment gateway authorization code
+    BankTransferPayment:
+      type: object
+      description: Payment made via direct bank transfer.
+      required:
+      - paymentMethod
+      - bankName
+      - referenceNumber
+      properties:
+        paymentMethod:
+          type: string
+          enum:
+          - bank_transfer
+        bankName:
+          type: string
+          example: Jumhouria Bank
+        referenceNumber:
+          type: string
+          example: TRX-2026-00981
+    CashPayment:
+      type: object
+      description: Payment made in cash at the point of service.
+      required:
+      - paymentMethod
+      - receivedBy
+      properties:
+        paymentMethod:
+          type: string
+          enum:
+          - cash
+        receivedBy:
+          type: string
+          description: Staff user ID who received the cash.
+          format: uuid
+    PaymentDetails:
+      description: Polymorphic payment detail, discriminated by paymentMethod (oneOf + discriminator).
+      oneOf:
+      - $ref: '#/components/schemas/CreditCardPayment'
+      - $ref: '#/components/schemas/BankTransferPayment'
+      - $ref: '#/components/schemas/CashPayment'
+      discriminator:
+        propertyName: paymentMethod
+        mapping:
+          credit_card: '#/components/schemas/CreditCardPayment'
+          bank_transfer: '#/components/schemas/BankTransferPayment'
+          cash: '#/components/schemas/CashPayment'
+    Invoice:
+      description: A billing invoice raised against a patient.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - patientId
+        - items
+        - status
+        - totalAmount
+        - currency
+        properties:
+          patientId:
+            type: string
+            format: uuid
+          appointmentId:
+            type:
+            - string
+            - 'null'
+            format: uuid
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/InvoiceItem'
+            minItems: 1
+          status:
+            $ref: '#/components/schemas/InvoiceStatus'
+          currency:
+            type: string
+            description: ISO 4217 currency code.
+            default: LYD
+            example: LYD
+          totalAmount:
+            type: number
+            format: double
+            example: 157.5
+          amountPaid:
+            type: number
+            format: double
+            default: 0
+          dueDate:
+            type:
+            - string
+            - 'null'
+            format: date
+          payment:
+            $ref: '#/components/schemas/PaymentDetails'
+    InvoiceCreate:
+      type: object
+      required:
+      - patientId
+      - items
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        appointmentId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItem'
+          minItems: 1
+        dueDate:
+          type:
+          - string
+          - 'null'
+          format: date
+    InvoiceUpdate:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItem'
+        dueDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+    PayInvoiceRequest:
+      type: object
+      required:
+      - amount
+      - payment
+      properties:
+        amount:
+          type: number
+          format: double
+          example: 157.5
+        payment:
+          $ref: '#/components/schemas/PaymentDetails'
+    InventoryItem:
+      description: A stocked pharmacy/supply item.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - name
+        - sku
+        - quantityOnHand
+        - unit
+        properties:
+          name:
+            type: string
+            example: Paracetamol 500mg
+          sku:
+            type: string
+            example: SKU-PARA-500
+          category:
+            type: string
+            enum:
+            - medication
+            - consumable
+            - equipment
+            default: medication
+          quantityOnHand:
+            type: integer
+            minimum: 0
+            example: 480
+          reorderThreshold:
+            type: integer
+            minimum: 0
+            default: 50
+          unit:
+            type: string
+            example: box
+          unitCost:
+            type: number
+            format: double
+            example: 3.25
+          expiryDate:
+            type:
+            - string
+            - 'null'
+            format: date
+          supplier:
+            type:
+            - string
+            - 'null'
+            description: Primary supplier name
+            example: Al-Shifa Pharmaceuticals
+    InventoryItemCreate:
+      type: object
+      required:
+      - name
+      - sku
+      - quantityOnHand
+      - unit
+      properties:
+        name:
+          type: string
+        sku:
+          type: string
+        category:
+          type: string
+          enum:
+          - medication
+          - consumable
+          - equipment
+        quantityOnHand:
+          type: integer
+          minimum: 0
+        unit:
+          type: string
+        unitCost:
+          type: number
+          format: double
+    InventoryItemUpdate:
+      type: object
+      properties:
+        reorderThreshold:
+          type: integer
+          minimum: 0
+        unitCost:
+          type: number
+          format: double
+        supplier:
+          type:
+          - string
+          - 'null'
+          description: Primary supplier name
+    RestockRequest:
+      type: object
+      required:
+      - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 100
+        unitCost:
+          type: number
+          format: double
+        supplier:
+          type:
+          - string
+          - 'null'
+          description: Supplier for this restock batch
+    Notification:
+      description: A notification delivered (or pending delivery) to a user or patient.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - recipientId
+        - type
+        - channel
+        - message
+        properties:
+          recipientId:
+            type: string
+            format: uuid
+          type:
+            $ref: '#/components/schemas/NotificationType'
+          channel:
+            $ref: '#/components/schemas/NotificationChannel'
+          message:
+            type: string
+            example: Your appointment is tomorrow at 10:30 AM.
+          isRead:
+            type: boolean
+            default: false
+          sentAt:
+            type:
+            - string
+            - 'null'
+            format: date-time
+    NotificationSubscribeRequest:
+      type: object
+      description: Registers a webhook endpoint to receive push notifications for selected event types.
+      required:
+      - targetUrl
+      - events
+      properties:
+        targetUrl:
+          type: string
+          format: uri
+          example: https://partner.example/webhooks/medicore
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+            - appointment.created
+            - invoice.paid
+            - prescription.issued
+          minItems: 1
+        secret:
+          type: string
+          description: Shared secret used to sign the X-MediCore-Signature header.
+          writeOnly: true
+    FileMetadata:
+      description: Metadata for an uploaded binary object.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - fileName
+        - contentType
+        - sizeBytes
+        properties:
+          fileName:
+            type: string
+            example: lab-result-2026-06-01.pdf
+          contentType:
+            type: string
+            example: application/pdf
+          sizeBytes:
+            type: integer
+            example: 245678
+          ownerType:
+            type: string
+            enum:
+            - patient
+            - user
+            - invoice
+            - medical_record
+          ownerId:
+            type: string
+            format: uuid
+          downloadUrl:
+            type:
+            - string
+            - 'null'
+            description: Signed, time-limited download URL
+            format: uri
+    Role:
+      description: A named collection of permissions assignable to users.
+      allOf:
+      - $ref: '#/components/schemas/BaseEntity'
+      - type: object
+        required:
+        - name
+        - permissions
+        properties:
+          name:
+            type: string
+            example: Billing Supervisor
+          permissions:
+            type: array
+            items:
+              type: string
+            example:
+            - billing:read
+            - billing:write
+          isSystemRole:
+            type: boolean
+            default: false
+            readOnly: true
+    RoleCreate:
+      type: object
+      required:
+      - name
+      - permissions
+      properties:
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    AuditLog:
+      type: object
+      description: An immutable record of a state-changing action for compliance purposes.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (UUID v4)
+          readOnly: true
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        actorId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: invoice.updated
+        resourceType:
+          type: string
+          example: Invoice
+        resourceId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        changes:
+          description: 'Details of what changed (anyOf: patch-style ops or before/after snapshot).'
+          anyOf:
+          - type: array
+            title: JsonPatchOps
+            items:
+              type: object
+              required:
+              - op
+              - path
+              properties:
+                op:
+                  type: string
+                  enum:
+                  - add
+                  - remove
+                  - replace
+                path:
+                  type: string
+                  example: /status
+                value: {}
+          - type: object
+            title: BeforeAfterSnapshot
+            properties:
+              before:
+                type: object
+                additionalProperties: true
+              after:
+                type: object
+                additionalProperties: true
+    SettingsBundle:
+      type: object
+      description: Tenant-wide configuration values.
+      properties:
+        clinicName:
+          type: string
+          example: MediCore Central Clinic
+        timezone:
+          type: string
+          example: Africa/Tripoli
+        defaultCurrency:
+          type: string
+          example: LYD
+        appointmentSlotMinutes:
+          type: integer
+          default: 30
+        features:
+          type: object
+          description: Dictionary/map of feature-flag name to enabled state.
+          additionalProperties:
+            type: boolean
+          example:
+            onlineBooking: true
+            smsReminders: false
+    SettingsUpdate:
+      type: object
+      properties:
+        clinicName:
+          type: string
+        timezone:
+          type: string
+        appointmentSlotMinutes:
+          type: integer
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+    ReportExportRequest:
+      type: object
+      required:
+      - reportType
+      - format
+      properties:
+        reportType:
+          type: string
+          enum:
+          - revenue
+          - patient_stats
+          - inventory_valuation
+          - appointment_volume
+        format:
+          type: string
+          enum:
+          - csv
+          - pdf
+          - xlsx
+          default: pdf
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+        callbackUrl:
+          type: string
+          format: uri
+          description: Optional URL to receive a callback once the export is ready.
+    ReportExportAccepted:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - queued
+          - processing
+        statusUrl:
+          type: string
+          format: uri
+    AppointmentCreatedEvent:
+      type: object
+      required:
+      - event
+      - data
+      properties:
+        event:
+          type: string
+          enum:
+          - appointment.created
+        occurredAt:
+          type: string
+          format: date-time
+        data:
+          $ref: '#/components/schemas/Appointment'
+    InvoicePaidEvent:
+      type: object
+      required:
+      - event
+      - data
+      properties:
+        event:
+          type: string
+          enum:
+          - invoice.paid
+        occurredAt:
+          type: string
+          format: date-time
+        data:
+          $ref: '#/components/schemas/Invoice'
+    PrescriptionIssuedEvent:
+      type: object
+      required:
+      - event
+      - data
+      properties:
+        event:
+          type: string
+          enum:
+          - prescription.issued
+        occurredAt:
+          type: string
+          format: date-time
+        data:
+          $ref: '#/components/schemas/Prescription'
+    WebhookEvent:
+      description: Envelope for any MediCore webhook delivery (oneOf + discriminator on 'event').
+      oneOf:
+      - $ref: '#/components/schemas/AppointmentCreatedEvent'
+      - $ref: '#/components/schemas/InvoicePaidEvent'
+      - $ref: '#/components/schemas/PrescriptionIssuedEvent'
+      discriminator:
+        propertyName: event
+        mapping:
+          appointment.created: '#/components/schemas/AppointmentCreatedEvent'
+          invoice.paid: '#/components/schemas/InvoicePaidEvent'
+          prescription.issued: '#/components/schemas/PrescriptionIssuedEvent'
+  responses:
+    BadRequest:
+      description: The request was malformed or failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication credentials were missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The authenticated principal lacks permission for this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: The request conflicts with the current state of the resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: The client has exceeded the allowed request rate.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: An unexpected error occurred on the server.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  requestBodies:
+    FileUploadBody:
+      description: Multipart file upload with optional descriptive fields.
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: The binary file content.
+              description:
+                type: string
+                description: Optional human-readable description.
+              ownerType:
+                type: string
+                enum:
+                - patient
+                - user
+                - invoice
+                - medical_record
+              ownerId:
+                type: string
+                format: uuid
+          encoding:
+            file:
+              contentType: application/octet-stream
+  callbacks: {}
+  examples:
+    LoginRequestExample:
+      summary: Typical login request
+      value:
+        email: salma.barghathi@medicore.example
+        password: Str0ngPassw0rd!
+        rememberMe: true
+    PatientExample:
+      summary: A sample patient record
+      value:
+        id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        fullName: Aisha Al-Mansouri
+        dateOfBirth: '1990-05-14'
+        gender: female
+        bloodType: O+
+        phone: '+218921234567'
+        allergies:
+        - penicillin
+        chronicConditions:
+        - hypertension
+        createdAt: '2026-01-15T09:30:00Z'
+        updatedAt: '2026-02-01T14:12:00Z'
+    CreditCardPaymentExample:
+      summary: Card payment example
+      value:
+        paymentMethod: credit_card
+        cardLast4: '4242'
+        cardBrand: visa
+    BankTransferPaymentExample:
+      summary: Bank transfer payment example
+      value:
+        paymentMethod: bank_transfer
+        bankName: Jumhouria Bank
+        referenceNumber: TRX-2026-00981

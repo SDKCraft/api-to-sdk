@@ -1,0 +1,437 @@
+openapi: 3.0.3
+info:
+  title: SDKCraft Basic Benchmark API
+  description: A standard, fully functional Todo and User Management API used as a baseline benchmark for testing SDKCraft SDK generation, documentation parsing, and basic API change detection.
+  version: 1.1.0
+servers:
+  - url: https://api.sdkcraft-benchmark.local/v1
+    description: Mock Local Benchmark Server
+paths:
+  /auth/login:
+    post:
+      summary: Authenticate user and retrieve token
+      operationId: loginUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /users/me:
+    get:
+      summary: Get current user profile
+      operationId: getCurrentUser
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /todos:
+    get:
+      summary: List all tasks for the authenticated user
+      operationId: listTodos
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: completed
+          in: query
+          description: Filter tasks by completed status
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: Maximum number of records to return
+          required: false
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+        - name: sortBy
+          in: query
+          description: Field to sort the tasks by
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, dueDate, priority]
+            default: createdAt
+      responses:
+        '200':
+          description: A list of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoItem'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    post:
+      summary: Create a new task
+      operationId: createTodo
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoCreateInput'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /todos/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Unique identifier of the task
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a specific task by ID
+      operationId: getTodoById
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Task details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    put:
+      summary: Update an existing task entirely
+      operationId: updateTodo
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdateInput'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '400':
+          description: Invalid fields supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    delete:
+      summary: Delete a task
+      operationId: deleteTodo
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Task deleted successfully with no content returned
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /todos/{id}/archive:
+    patch:
+      summary: Archive a specific task to prevent modifications
+      operationId: archiveTodo
+      tags:
+        - Todos
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Task archived successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: developer@sdkcraft.io
+        password:
+          type: string
+          format: password
+          example: P@ssword123
+
+    AuthToken:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Token lifetime in seconds
+          example: 3600
+
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: d3b07384-d113-4c4e-a540-511ec00e5033
+        name:
+          type: string
+          example: Ihsan Developer
+        email:
+          type: string
+          format: email
+          example: ihsan@sdkcraft.io
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-01-10T14:32:01Z'
+
+    TodoItem:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - userId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 7a2b9c3d-e4f5-6a7b-8c9d-0e1f2a3b4c5d
+        title:
+          type: string
+          description: The main title describing the task
+          example: Implement openapi generator parser
+        description:
+          type: string
+          description: Optional detailed notes regarding the task
+          example: Ensure it supports path params validation and recursive schemas.
+        status:
+          type: string
+          enum: [pending, in_progress, completed, archived]
+          example: pending
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          example: high
+        dueDate:
+          type: string
+          format: date
+          example: '2026-07-15'
+        userId:
+          type: string
+          format: uuid
+          example: d3b07384-d113-4c4e-a540-511ec00e5033
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-07-10T18:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-07-10T18:30:00Z'
+
+    TodoCreateInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Write benchmark schemas
+        description:
+          type: string
+          maxLength: 500
+          example: Create basic, advanced, and enterprise configurations.
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        dueDate:
+          type: string
+          format: date
+
+    TodoUpdateInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Write benchmark schemas (Updated)
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+          enum: [pending, in_progress, completed, archived]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        dueDate:
+          type: string
+          format: date
+
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Internal technical error identifier
+          example: INVALID_PARAMETER
+        message:
+          type: string
+          description: Human-readable error message
+          example: The provided 'id' must be a valid UUID string.
+        details:
+          type: array
+          items:
+            type: string
+          example: ["id is not formatted correctly"]
