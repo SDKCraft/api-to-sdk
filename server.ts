@@ -301,7 +301,7 @@ app.post("/github-token", async (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "ok", name: "SDKCraft API" });
 });
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ SDKCraft API running on http://localhost:${PORT}`);
 });
