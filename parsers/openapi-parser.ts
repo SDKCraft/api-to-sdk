@@ -40,10 +40,19 @@ export interface ApiSpec {
   models: Model[];
 }
 
-function openApiTypToTs(type: string, format?: string): string {
-  if (type === "integer" || type === "number") return "number";
-  if (type === "boolean") return "boolean";
-  if (type === "array") return "unknown[]";
+function openApiTypToTs(schema: any): string {
+  if (schema?.$ref) return resolveRef(schema.$ref);
+
+  if (schema?.type === "integer" || schema?.type === "number") {
+    return "number";
+  }
+
+  if (schema?.type === "boolean") return "boolean";
+
+  if (schema?.type === "array") {
+    return `${openApiTypToTs(schema.items)}[]`;
+  }
+
   return "string";
 }
 
@@ -58,7 +67,7 @@ function extractModels(schemas: Record<string, any>): Model[] {
         const prop = schema.properties[fieldName];
         fields.push({
           name: fieldName,
-          type: openApiTypToTs(prop.type, prop.format),
+          type: openApiTypToTs(prop),
           required: required.includes(fieldName),
           nullable: prop.nullable || false,
         });
