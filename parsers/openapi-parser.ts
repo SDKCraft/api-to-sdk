@@ -40,7 +40,7 @@ export interface ApiSpec {
   models: Model[];
 }
 
-function openApiTypToTs(schema: any): string {
+function openApiTypToTs(schema: any, isArrayItem = false): string {
   if (schema?.$ref) return resolveRef(schema.$ref);
 
   if (schema?.type === "integer" || schema?.type === "number") {
@@ -49,11 +49,13 @@ function openApiTypToTs(schema: any): string {
 
   if (schema?.type === "boolean") return "boolean";
 
+  if (schema?.type === "string") return "string";
+  
   if (schema?.type === "array") {
-    return `${openApiTypToTs(schema.items)}[]`;
+    return `${openApiTypToTs(schema.items, true)}[]`;
   }
 
-  return "string";
+  return isArrayItem ? "unknown" : "string";
 }
 
 function extractModels(schemas: Record<string, any>): Model[] {
