@@ -9,3 +9,5 @@ sdk-output/
 sdk-test/
 *.lnk
 *.zip
+prod-multi.json
+test-output/
