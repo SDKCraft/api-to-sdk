@@ -7,3 +7,5 @@ final-output/
 output/
 sdk-output/
 sdk-test/
+*.lnk
+*.zip
