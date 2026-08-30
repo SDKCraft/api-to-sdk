@@ -70,7 +70,21 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use(cors());
+const allowedOrigins = [
+  "https://sdkcraft.com",
+  "https://www.sdkcraft.com",
+  "https://sdk-web.vercel.app",
+  "http://localhost:3000",
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+}));
 app.use(express.json());
 
 app.post("/generate", generateLimiter, upload.single("file"), (req, res) => {
