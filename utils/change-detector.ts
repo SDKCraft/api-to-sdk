@@ -1,4 +1,4 @@
-import { ApiSpec, Endpoint } from "../parsers/openapi-parser";
+import { ApiSpec, Endpoint } from "sdkcraft-core";
 
 export interface ChangeReport {
   newEndpoints: Endpoint[];

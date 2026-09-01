@@ -1,4 +1,4 @@
-import { ApiSpec } from "../parsers/openapi-parser";
+import { ApiSpec } from "sdkcraft-core";
 
 export interface SDKScore {
   total: number;
