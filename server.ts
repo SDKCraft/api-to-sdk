@@ -303,7 +303,7 @@ app.post("/detect-changes", advancedFeaturesLimiter, upload.fields([
   { name: "newFile", maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = (req.files || {}) as { [fieldname: string]: Express.Multer.File[] };
     if (!files.oldFile || !files.newFile) {
       return res.status(400).json({ error: "Please upload both old and new API files" });
     }
