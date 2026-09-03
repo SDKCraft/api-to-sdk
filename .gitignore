@@ -10,4 +10,5 @@ sdk-test/
 *.lnk
 *.zip
 prod-multi.json
+uploads/
 test-output/
