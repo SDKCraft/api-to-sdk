@@ -1,4 +1,20 @@
 import "dotenv/config";
+import * as Sentry from "@sentry/node";
+
+// ---- Sentry (error monitoring) ----
+// لازم يتفعّل قبل استيراد/تشغيل أي حاجة تانية عشان يقدر يلقط الأخطاء من أول لحظة.
+// لو SENTRY_DSN مش مضبوط (مثلاً بالتطوير المحلي)، Sentry.init هتتجاهل بأمان بدون ما تكسر السيرفر.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "production",
+    tracesSampleRate: 0.1, // 10% من الطلبات بس للـ performance tracing، عشان نوفر على حصة Sentry المجانية
+  });
+  console.log("✅ Sentry error monitoring enabled");
+} else {
+  console.log("⚠️ SENTRY_DSN not set — error monitoring disabled");
+}
+
 import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -198,6 +214,7 @@ res.json({
 });
 
   } catch (error: any) {
+    Sentry.captureException(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -211,6 +228,7 @@ app.post("/generate-docs", aiDocsLimiter, upload.single("file"), async (req, res
     fs.rmSync(req.file.path, { force: true });
     res.json({ success: true, docs });
   } catch (error: any) {
+    Sentry.captureException(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -275,6 +293,7 @@ if (langs.includes("swift"))     generateSwiftSDK(spec, path.join(outputDir, "sw
     res.json({ success: true, total: files.length, results });
 
   } catch (error: any) {
+    Sentry.captureException(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -299,6 +318,7 @@ app.post("/detect-changes", advancedFeaturesLimiter, upload.fields([
 
     res.json({ success: true, report });
   } catch (error: any) {
+    Sentry.captureException(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -323,6 +343,26 @@ app.post("/github-token", async (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "ok", name: "SDKCraft API" });
 });
+
+// ---- Global error handler (يلتقط أي خطأ هرب من try/catch المحلية بأي route) ----
+Sentry.setupExpressErrorHandler(app);
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Unhandled error:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ---- التقاط الأخطاء اللي مش مرتبطة بـ request محدد ----
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+  Sentry.captureException(reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  Sentry.captureException(err);
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ SDKCraft API running on http://localhost:${PORT}`);
